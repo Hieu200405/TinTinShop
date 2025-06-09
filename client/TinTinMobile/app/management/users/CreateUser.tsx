@@ -93,7 +93,6 @@ const CreateUser = () => {
     };
 
    const handleCreateUser = async(values: any) => {
-    console.log(values);
     if(avatarFileName.length > 0 && avatarUri.length > 0){
         const formData = new FormData();
         formData.append("file", {
@@ -117,6 +116,7 @@ const CreateUser = () => {
             avatar: avatarFileName,
             birthdate: birthDate,
         }
+        console.log(newUser);
         const resUser = await createUser(newUser);
         if(resUser.data){
             Toast.show({

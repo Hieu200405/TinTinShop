@@ -18,6 +18,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from 'expo-haptics';
 import SupportItem from "@/components/SupportItem";
+
 const image = {
     avatar_default: require("@/assets/images/setting/avatar_default.jpg"),
 };
@@ -28,15 +29,17 @@ const image_url_base = `http://${IPV4}:${PORT}/storage`;
 
 const SettingScreen = () => {
     const [refreshing, setRefreshing] = useState(false);
+
     const onRefresh = useCallback(() => {
         const fetchUser = async (id: string) => {
             try {
-                setRefreshing(true); 
+                setRefreshing(true);
                 await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    
+
                 const res = await callGetUser(id);
                 if (res.data) {
                     setUserData(res.data);
+                    console.log(res.data);
                 }
             } catch (error) {
                 console.error("Lỗi khi fetch user:", error);
@@ -45,12 +48,12 @@ const SettingScreen = () => {
                 setRefreshing(false);
             }
         };
-    
+
         if (user?.user.id) {
             fetchUser(user.user.id);
         }
     }, []);
-    
+
     const { user, setUser } = useAppContext();
     const [userData, setUserData] = useState<IUser>();
     const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -60,11 +63,10 @@ const SettingScreen = () => {
         const res = await callLogout();
         AsyncStorage.removeItem("access_token");
         setUser(null);
-        
+
         if (res.statusCode === 200) {
-            router.replace("../../(auth)/WelcomeScreen");
             Toast.show({ text1: "Đăng xuất thành công", type: "success" });
-           
+            router.replace("/(auth)/WelcomeScreen");
         } else {
             Toast.show({ text1: "Đăng xuất thất bại", type: "error" });
         }
@@ -80,21 +82,20 @@ const SettingScreen = () => {
         const jsonStr = encodeURIComponent(JSON.stringify(userData));
 
         router.push({
-            pathname: "../../profile",
+            pathname: "/profile",
             params: {
                 userDataStr: jsonStr,
             },
         });
-
-    }
+    };
 
     const handleAddress = () => {
         router.push("/address");
-    }
+    };
 
     const handleStore = () => {
         router.push("/address/MapScreen");
-    }
+    };
 
     useEffect(() => {
         const fetchUser = async (id: string) => {
@@ -109,8 +110,8 @@ const SettingScreen = () => {
     }, []);
 
     return (
-        <ScrollView 
-            style={styles.container} 
+        <ScrollView
+            style={styles.container}
             contentContainerStyle={styles.contentContainer}
             refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -128,23 +129,23 @@ const SettingScreen = () => {
                     </View>
                 </View>
                 <View style={styles.flashGroup}>
-                    <IconCard 
-                      icon={<AntDesign name="form" size={24} color={COLORS.ITEM_TEXT} />} 
-                      title="Thông tin" 
-                        onPress={handleProfile} 
-                      textStyle={{ color: COLORS.ITEM_TEXT }} 
+                    <IconCard
+                        icon={<AntDesign name="form" size={24} color={COLORS.ITEM_TEXT} />}
+                        title="Thông tin"
+                        onPress={handleProfile}
+                        textStyle={{ color: COLORS.ITEM_TEXT }}
                     />
-                    <IconCard 
-                      icon={<Feather name="map-pin" size={24} color={COLORS.ITEM_TEXT} />} 
-                      title="Địa chỉ" 
-                      onPress={handleAddress} 
-                      textStyle={{ color: COLORS.ITEM_TEXT }} 
+                    <IconCard
+                        icon={<Feather name="map-pin" size={24} color={COLORS.ITEM_TEXT} />}
+                        title="Địa chỉ"
+                        onPress={handleAddress}
+                        textStyle={{ color: COLORS.ITEM_TEXT }}
                     />
-                    <IconCard 
-                        icon={<MaterialIcons name="store" size={24} color={COLORS.ITEM_TEXT} />} 
-                        title="Cửa hàng" 
-                        onPress={handleStore} 
-                        textStyle={{ color: COLORS.ITEM_TEXT }} 
+                    <IconCard
+                        icon={<MaterialIcons name="store" size={24} color={COLORS.ITEM_TEXT} />}
+                        title="Cửa hàng"
+                        onPress={handleStore}
+                        textStyle={{ color: COLORS.ITEM_TEXT }}
                     />
                 </View>
             </View>
@@ -155,9 +156,20 @@ const SettingScreen = () => {
                     <Text style={styles.headerText}>Thông tin chung</Text>
                 </View>
                 <Accordion title="Thông tin về TinTinShop">
-                    <Text>Test 1</Text>
-                    <Text>Test 2</Text>
-                    <Text>Test 3</Text>
+                    <View style={styles.accordionContent}>
+                        <Text style={styles.accordionTitle}>
+                            Giới thiệu TinTinShop
+                        </Text>
+                        <Text style={styles.accordionText}>
+                            TinTinShop là nền tảng mua sắm trực tuyến hàng đầu tại Việt Nam, được thành lập vào năm 2018.
+                        </Text>
+                        <Text style={styles.accordionText}>
+                            Chúng tôi cung cấp đa dạng sản phẩm từ thời trang, điện tử, đồ gia dụng đến thực phẩm, đáp ứng mọi nhu cầu của khách hàng.
+                        </Text>
+                        <Text style={styles.accordionText}>
+                            Với sứ mệnh "Mang đến trải nghiệm mua sắm tiện lợi, an toàn và nhanh chóng", TinTinShop cam kết giao hàng trong 24h và hỗ trợ đổi trả miễn phí trong 30 ngày.
+                        </Text>
+                    </View>
                 </Accordion>
             </View>
 
@@ -167,7 +179,7 @@ const SettingScreen = () => {
                     <Text style={styles.headerText}>Trung tâm hỗ trợ</Text>
                 </View>
                 <Accordion title="Hỗ trợ">
-                <SupportItem
+                    <SupportItem
                         icon={<AntDesign name="phone" size={24} color={COLORS.ITEM_TEXT} />}
                         title="Hotline"
                         description="1900123456"
@@ -198,9 +210,20 @@ const SettingScreen = () => {
                     />
                 </Accordion>
                 <Accordion title="Phản hồi">
-                    <Text>Test 1</Text>
-                    <Text>Test 2</Text>
-                    <Text>Test 3</Text>
+                    <View style={styles.accordionContent}>
+                        <Text style={styles.accordionTitle}>
+                            Gửi ý kiến của bạn
+                        </Text>
+                        <Text style={styles.accordionText}>
+                            Chúng tôi luôn trân trọng ý kiến của bạn! Nếu bạn có thắc mắc hoặc cần hỗ trợ, vui lòng liên hệ qua <Text style={{ color: COLORS.STATUS_PENDING, fontWeight: "bold" }}>hotline 1900123456</Text>.
+                        </Text>
+                        <Text style={styles.accordionText}>
+                            Bạn cũng có thể gửi phản hồi trực tiếp qua <Text style={{ color: COLORS.STATUS_PENDING, fontWeight: "bold" }}>email support@TinTinShop.com</Text> hoặc điền form trên website của chúng tôi.
+                        </Text>
+                        <Text style={styles.accordionText}>
+                            TinTinShop luôn sẵn sàng cải thiện dịch vụ dựa trên góp ý của khách hàng để mang đến trải nghiệm tốt nhất!
+                        </Text>
+                    </View>
                 </Accordion>
             </View>
 
@@ -229,7 +252,6 @@ const SettingScreen = () => {
                 message="Bạn có chắc chắn muốn đăng xuất?"
             />
 
-
             {Platform.OS === "android" && (
                 <TouchableOpacity style={styles.itemContainer} onPress={handleExitApp}>
                     <View style={styles.itemHeader}>
@@ -237,11 +259,11 @@ const SettingScreen = () => {
                         <Text style={styles.headerText}>Thoát ứng dụng</Text>
                     </View>
                 </TouchableOpacity>
-                
             )}
         </ScrollView>
     );
 };
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -301,6 +323,30 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: COLORS.ITEM_TEXT,
         fontWeight: "bold",
+    },
+    accordionContent: {
+        padding: 15,
+        backgroundColor: COLORS.ITEM_BACKGROUND, 
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: COLORS.ITEM_BORDER, 
+        marginVertical: 5,
+    },
+    accordionTitle: {
+        fontSize: 16,
+        fontWeight: "600", 
+        color: COLORS.ITEM_TEXT,
+        marginBottom: 10,
+        paddingBottom: 5,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.ITEM_BORDER, 
+    },
+    accordionText: {
+        fontSize: 14,
+        color: COLORS.ITEM_TEXT,
+        lineHeight: 22,
+        marginBottom: 10,
+        paddingHorizontal: 5, 
     },
 });
 

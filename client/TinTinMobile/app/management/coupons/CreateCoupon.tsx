@@ -1,6 +1,6 @@
 import { COLORS } from "@/util/constant";
 import { AntDesign, Ionicons } from "@expo/vector-icons";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable, Image } from "react-native"
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable, Image } from "react-native";
 import { router } from "expo-router";
 import { useState } from "react";
 import { requestImagePickerPermission } from "@/util/ImagePickerPermisison";
@@ -81,18 +81,18 @@ const CreateCoupon = () => {
     const hideEndDatePicker = () => setEndDatePickerVisible(false);
 
     const handleStartDateConfirm = (date: Date) => {
-        const formatted = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, "0")}/${date.getFullYear()}`;
-        setStartDate(formatted);
+        const now = new Date(); // Get current time
+        date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+        const isoString = date.toISOString(); // Format as ISO 8601 (e.g., 2025-06-10T01:15:00.000Z)
+        setStartDate(isoString);
         hideStartDatePicker();
     };
 
     const handleEndDateConfirm = (date: Date) => {
-        const formatted = `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, "0")}/${date.getFullYear()}`;
-        setEndDate(formatted);
+        const now = new Date(); // Get current time
+        date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
+        const isoString = date.toISOString(); // Format as ISO 8601 (e.g., 2025-06-10T01:15:00.000Z)
+        setEndDate(isoString);
         hideEndDatePicker();
     };
 
@@ -184,8 +184,8 @@ const CreateCoupon = () => {
             maxDiscount: parseFloat(values.maxDiscount),
             minOrderValue: parseFloat(values.minOrderValue),
             quantity: parseInt(values.quantity),
-            startDate: startDate,
-            endDate: endDate,
+            startDate: startDate, // Now in ISO 8601 format
+            endDate: endDate, // Now in ISO 8601 format
             isActive: isActive,
         }
 
@@ -213,6 +213,18 @@ const CreateCoupon = () => {
 
     const getDiscountTypeLabel = () => {
         return discountType === DiscountType.PERCENT ? "Percent (%)" : "Amount (VND)";
+    };
+
+    // Helper to format ISO date for display (optional, if you want to show DD/MM/YYYY HH:mm)
+    const formatDisplayDate = (isoString: string) => {
+        if (!isoString) return '';
+        const date = new Date(isoString);
+        const day = date.getDate().toString().padStart(2, "0");
+        const month = (date.getMonth() + 1).toString().padStart(2, "0");
+        const year = date.getFullYear();
+        const hours = date.getHours().toString().padStart(2, "0");
+        const minutes = date.getMinutes().toString().padStart(2, "0");
+        return `${day}/${month}/${year} ${hours}:${minutes}`;
     };
 
     return (
@@ -344,7 +356,7 @@ const CreateCoupon = () => {
                                 <View>
                                     <Text style={styles.labelText}>Start Date</Text>
                                     <ProfileInput
-                                        value={startDate}
+                                        value={formatDisplayDate(startDate)}
                                         onPress={showStartDatePicker}
                                         iconName="calendar"
                                     />
@@ -353,7 +365,7 @@ const CreateCoupon = () => {
                                 <View>
                                     <Text style={styles.labelText}>End Date</Text>
                                     <ProfileInput
-                                        value={endDate}
+                                        value={formatDisplayDate(endDate)}
                                         onPress={showEndDatePicker}
                                         iconName="calendar"
                                     />
