@@ -44,7 +44,7 @@ const couponSchema = Yup.object().shape({
     discountValue: Yup.number()
         .required('Discount value is required')
         .positive('Discount value must be positive')
-        .test('discount-validation', 'Invalid discount value', function(value) {
+        .test('discount-validation', 'Invalid discount value', function (value) {
             const { discountType } = this.parent;
             if (discountType === DiscountType.PERCENT) {
                 return value <= 100;
@@ -75,27 +75,83 @@ const CreateCoupon = () => {
     const [endDate, setEndDate] = useState<string>('');
     const [isActive, setIsActive] = useState<boolean>(true);
 
+    // Date picker visibility handlers
     const showStartDatePicker = () => setStartDatePickerVisible(true);
     const hideStartDatePicker = () => setStartDatePickerVisible(false);
     const showEndDatePicker = () => setEndDatePickerVisible(true);
     const hideEndDatePicker = () => setEndDatePickerVisible(false);
 
+    // Helper function to create Instant from current time
+    const getCurrentInstant = (): string => {
+        return new Date().toISOString();
+    };
+
+    // Helper function to convert Instant string to local date for display
+    const formatInstantForDisplay = (instantString: string): string => {
+        if (!instantString) return '';
+
+        try {
+            const date = new Date(instantString);
+            const day = date.getDate().toString().padStart(2, "0");
+            const month = (date.getMonth() + 1).toString().padStart(2, "0");
+            const year = date.getFullYear();
+            const hours = date.getHours().toString().padStart(2, "0");
+            const minutes = date.getMinutes().toString().padStart(2, "0");
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        } catch (error) {
+            console.error('Error parsing instant string:', error);
+            return '';
+        }
+    };
+
+    // Helper function to convert Instant string to Date object for date picker
+    const instantToDate = (instantString: string): Date => {
+        if (!instantString) return new Date();
+
+        try {
+            return new Date(instantString);
+        } catch (error) {
+            console.error('Error converting instant to date:', error);
+            return new Date();
+        }
+    };
+
+    // Helper function to validate date range
+    const isValidDateRange = (startInstant: string, endInstant: string): boolean => {
+        if (!startInstant || !endInstant) return false;
+
+        try {
+            const startDate = new Date(startInstant);
+            const endDate = new Date(endInstant);
+            return startDate < endDate;
+        } catch (error) {
+            console.error('Error validating date range:', error);
+            return false;
+        }
+    };
+
+    // Updated date confirm handlers for Instant format
     const handleStartDateConfirm = (date: Date) => {
-        const now = new Date(); // Get current time
-        date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-        const isoString = date.toISOString(); // Format as ISO 8601 (e.g., 2025-06-10T01:15:00.000Z)
-        setStartDate(isoString);
+        // Convert to UTC Instant format (ISO 8601 with Z suffix)
+        const utcDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+        const instantString = utcDate.toISOString();
+        setStartDate(instantString);
         hideStartDatePicker();
     };
 
     const handleEndDateConfirm = (date: Date) => {
-        const now = new Date(); // Get current time
-        date.setHours(now.getHours(), now.getMinutes(), now.getSeconds(), now.getMilliseconds());
-        const isoString = date.toISOString(); // Format as ISO 8601 (e.g., 2025-06-10T01:15:00.000Z)
-        setEndDate(isoString);
+        // Set end of day (23:59:59.999) for end date
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Convert to UTC Instant format (ISO 8601 with Z suffix)
+        const utcDate = new Date(endOfDay.getTime() - (endOfDay.getTimezoneOffset() * 60000));
+        const instantString = utcDate.toISOString();
+        setEndDate(instantString);
         hideEndDatePicker();
     };
 
+    // Action sheet handlers
     const openDiscountTypePicker = () => {
         const options = ["Percent (%)", "Amount (VND)", "Cancel"];
         const cancelButtonIndex = 2;
@@ -128,6 +184,7 @@ const CreateCoupon = () => {
         );
     };
 
+    // Image picker handler
     const pickImageAsync = async () => {
         const permission = await requestImagePickerPermission();
         if (permission) {
@@ -147,9 +204,9 @@ const CreateCoupon = () => {
         }
     };
 
+    // Main coupon creation handler
     const handleCreateCoupon = async (values: any) => {
-        console.log(values);
-        
+
         // Validate dates
         if (!startDate || !endDate) {
             Toast.show({
@@ -159,19 +216,37 @@ const CreateCoupon = () => {
             return;
         }
 
+        // Validate date range
+        if (!isValidDateRange(startDate, endDate)) {
+            Toast.show({
+                text1: "End date must be after start date",
+                type: "error",
+            });
+            return;
+        }
+
         // Upload image if selected
         let uploadedFileName = '';
         if (imageFileName.length > 0 && imageUri.length > 0) {
-            const formData = new FormData();
-            formData.append("file", {
-                uri: imageUri,
-                name: imageFileName,
-                type: "image/jpeg",
-            } as any);
-            formData.append("folder", "coupon");
-            const res = await callUploadFile(formData);
-            if (res.data) {
-                uploadedFileName = res.data.fileName;
+            try {
+                const formData = new FormData();
+                formData.append("file", {
+                    uri: imageUri,
+                    name: imageFileName,
+                    type: "image/jpeg",
+                } as any);
+                formData.append("folder", "coupon");
+                const res = await callUploadFile(formData);
+                if (res.data) {
+                    uploadedFileName = res.data.fileName;
+                }
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                Toast.show({
+                    text1: "Error uploading image",
+                    type: "error",
+                });
+                return;
             }
         }
 
@@ -184,10 +259,11 @@ const CreateCoupon = () => {
             maxDiscount: parseFloat(values.maxDiscount),
             minOrderValue: parseFloat(values.minOrderValue),
             quantity: parseInt(values.quantity),
-            startDate: startDate, // Now in ISO 8601 format
-            endDate: endDate, // Now in ISO 8601 format
+            startDate: startDate, 
+            endDate: endDate, 
             isActive: isActive,
         }
+
 
         try {
             const resCoupon = await callCreateCoupon(newCoupon);
@@ -204,6 +280,7 @@ const CreateCoupon = () => {
                 });
             }
         } catch (error) {
+            console.error('Error creating coupon:', error);
             Toast.show({
                 text1: "Có lỗi xảy ra khi tạo coupon",
                 type: "error",
@@ -213,18 +290,6 @@ const CreateCoupon = () => {
 
     const getDiscountTypeLabel = () => {
         return discountType === DiscountType.PERCENT ? "Percent (%)" : "Amount (VND)";
-    };
-
-    // Helper to format ISO date for display (optional, if you want to show DD/MM/YYYY HH:mm)
-    const formatDisplayDate = (isoString: string) => {
-        if (!isoString) return '';
-        const date = new Date(isoString);
-        const day = date.getDate().toString().padStart(2, "0");
-        const month = (date.getMonth() + 1).toString().padStart(2, "0");
-        const year = date.getFullYear();
-        const hours = date.getHours().toString().padStart(2, "0");
-        const minutes = date.getMinutes().toString().padStart(2, "0");
-        return `${day}/${month}/${year} ${hours}:${minutes}`;
     };
 
     return (
@@ -240,9 +305,9 @@ const CreateCoupon = () => {
 
                 <Text style={styles.headerText}>Thêm mới coupon</Text>
             </View>
-            
+
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"}>
-                <ScrollView>
+                <ScrollView showsVerticalScrollIndicator={false}>
                     <View style={styles.imageWrapper}>
                         <Image
                             source={imageUri ? { uri: imageUri } : image.coupon_default}
@@ -256,7 +321,7 @@ const CreateCoupon = () => {
                         </Pressable>
                     </View>
 
-                    <Formik 
+                    <Formik
                         initialValues={{
                             code: "",
                             description: "",
@@ -282,7 +347,7 @@ const CreateCoupon = () => {
                                     error={errors.code}
                                     placeholder="Enter coupon code (e.g., SAVE20)"
                                 />
-                                
+
                                 <ShareTextInput
                                     title="Description"
                                     value={values.description}
@@ -356,7 +421,7 @@ const CreateCoupon = () => {
                                 <View>
                                     <Text style={styles.labelText}>Start Date</Text>
                                     <ProfileInput
-                                        value={formatDisplayDate(startDate)}
+                                        value={formatInstantForDisplay(startDate)}
                                         onPress={showStartDatePicker}
                                         iconName="calendar"
                                     />
@@ -365,7 +430,7 @@ const CreateCoupon = () => {
                                 <View>
                                     <Text style={styles.labelText}>End Date</Text>
                                     <ProfileInput
-                                        value={formatDisplayDate(endDate)}
+                                        value={formatInstantForDisplay(endDate)}
                                         onPress={showEndDatePicker}
                                         iconName="calendar"
                                     />
@@ -386,6 +451,7 @@ const CreateCoupon = () => {
                                     onConfirm={handleStartDateConfirm}
                                     onCancel={hideStartDatePicker}
                                     minimumDate={new Date()}
+                                    date={instantToDate(startDate)}
                                 />
 
                                 <DateTimePickerModal
@@ -393,7 +459,8 @@ const CreateCoupon = () => {
                                     mode="date"
                                     onConfirm={handleEndDateConfirm}
                                     onCancel={hideEndDatePicker}
-                                    minimumDate={new Date()}
+                                    minimumDate={startDate ? instantToDate(startDate) : new Date()}
+                                    date={instantToDate(endDate)}
                                 />
 
                                 <ShareButton

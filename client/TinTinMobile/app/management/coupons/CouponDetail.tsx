@@ -64,6 +64,50 @@ const CouponDetail = () => {
     const [startDateError, setStartDateError] = useState<string>("");
     const [endDateError, setEndDateError] = useState<string>("");
 
+    // Helper function to convert Instant string to local date for display
+    const formatInstantForDisplay = (instantString: string): string => {
+        if (!instantString) return '';
+
+        try {
+            const date = new Date(instantString);
+            const day = date.getDate().toString().padStart(2, "0");
+            const month = (date.getMonth() + 1).toString().padStart(2, "0");
+            const year = date.getFullYear();
+            const hours = date.getHours().toString().padStart(2, "0");
+            const minutes = date.getMinutes().toString().padStart(2, "0");
+            return `${day}/${month}/${year} ${hours}:${minutes}`;
+        } catch (error) {
+            console.error('Error parsing instant string:', error);
+            return '';
+        }
+    };
+
+    // Helper function to convert Instant string to Date object for date picker
+    const instantToDate = (instantString: string): Date => {
+        if (!instantString) return new Date();
+
+        try {
+            return new Date(instantString);
+        } catch (error) {
+            console.error('Error converting instant to date:', error);
+            return new Date();
+        }
+    };
+
+    // Helper function to validate date range
+    const isValidDateRange = (startInstant: string, endInstant: string): boolean => {
+        if (!startInstant || !endInstant) return false;
+
+        try {
+            const startDate = new Date(startInstant);
+            const endDate = new Date(endInstant);
+            return startDate < endDate;
+        } catch (error) {
+            console.error('Error validating date range:', error);
+            return false;
+        }
+    };
+
     // Fetch coupon data
     useEffect(() => {
         const fetchCouponData = async () => {
@@ -112,15 +156,24 @@ const CouponDetail = () => {
     const showEndDatePicker = () => setEndDatePickerVisible(true);
     const hideEndDatePicker = () => setEndDatePickerVisible(false);
 
+    // Updated date confirm handlers for Instant format (same as create screen)
     const handleStartDateConfirm = (date: Date) => {
-        const formatted = date.toISOString().split('T')[0];
-        setStartDate(formatted);
+        // Convert to UTC Instant format (ISO 8601 with Z suffix)
+        const utcDate = new Date(date.getTime() - (date.getTimezoneOffset() * 60000));
+        const instantString = utcDate.toISOString();
+        setStartDate(instantString);
         hideStartDatePicker();
     };
 
     const handleEndDateConfirm = (date: Date) => {
-        const formatted = date.toISOString().split('T')[0];
-        setEndDate(formatted);
+        // Set end of day (23:59:59.999) for end date
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        // Convert to UTC Instant format (ISO 8601 with Z suffix)
+        const utcDate = new Date(endOfDay.getTime() - (endOfDay.getTimezoneOffset() * 60000));
+        const instantString = utcDate.toISOString();
+        setEndDate(instantString);
         hideEndDatePicker();
     };
 
@@ -207,7 +260,8 @@ const CouponDetail = () => {
             hasError = true;
         }
 
-        if (startDate && endDate && new Date(startDate) >= new Date(endDate)) {
+        // Updated date validation using instant strings
+        if (!isValidDateRange(startDate, endDate)) {
             setEndDateError("Ngày kết thúc phải sau ngày bắt đầu");
             hasError = true;
         }
@@ -230,8 +284,8 @@ const CouponDetail = () => {
             maxDiscount: Number(maxDiscount) || 0,
             minOrderValue: Number(minOrderValue) || 0,
             quantity: Number(quantity),
-            startDate: startDate,
-            endDate: endDate,
+            startDate: startDate, // Keep instant format
+            endDate: endDate, // Keep instant format
             isActive: isActive,
         };
 
@@ -299,14 +353,6 @@ const CouponDetail = () => {
 
     const handleBack = () => {
         router.back();
-    };
-
-    const formatDate = (dateStr: string) => {
-        if (!dateStr) return "";
-        const date = new Date(dateStr);
-        return `${date.getDate().toString().padStart(2, "0")}/${(date.getMonth() + 1)
-            .toString()
-            .padStart(2, "0")}/${date.getFullYear()}`;
     };
 
     const getDiscountTypeDisplayName = (type: string) => {
@@ -452,7 +498,7 @@ const CouponDetail = () => {
                     <View>
                         <Text style={styles.labelText}>Ngày bắt đầu</Text>
                         <ProfileInput
-                            value={formatDate(startDate)}
+                            value={formatInstantForDisplay(startDate)}
                             onPress={showStartDatePicker}
                             iconName="calendar"
                         />
@@ -463,7 +509,7 @@ const CouponDetail = () => {
                     <View>
                         <Text style={styles.labelText}>Ngày kết thúc</Text>
                         <ProfileInput
-                            value={formatDate(endDate)}
+                            value={formatInstantForDisplay(endDate)}
                             onPress={showEndDatePicker}
                             iconName="calendar"
                         />
@@ -488,6 +534,7 @@ const CouponDetail = () => {
                         onConfirm={handleStartDateConfirm}
                         onCancel={hideStartDatePicker}
                         minimumDate={new Date()}
+                        date={instantToDate(startDate)}
                     />
 
                     <DateTimePickerModal
@@ -495,7 +542,8 @@ const CouponDetail = () => {
                         mode="date"
                         onConfirm={handleEndDateConfirm}
                         onCancel={hideEndDatePicker}
-                        minimumDate={startDate ? new Date(startDate) : new Date()}
+                        minimumDate={startDate ? instantToDate(startDate) : new Date()}
+                        date={instantToDate(endDate)}
                     />
 
                     {/* Buttons */}
