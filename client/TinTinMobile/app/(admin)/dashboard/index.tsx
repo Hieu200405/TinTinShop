@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { useRouter } from 'expo-router';
-import { callGetOrders, callGetProductById, callGetProducts, callGetToppings, callGetUsers } from '@/config/api';
+import { callGetOrders, callGetProductById, callGetProducts, callGetProductSizeById, callGetToppings, callGetUsers } from '@/config/api';
 import { IOrderRes } from '@/types/order';
 import { OrderStatus } from '@/types/enums/OrderStatus.enum';
 import { IProductResponseDTO } from '@/types/product';
@@ -41,6 +41,7 @@ interface TopProduct {
   id: string;
   name: string;
   quantity: number;
+  productSizeId: string; // Add this to ensure uniqueness
 }
 
 interface TopCustomer {
@@ -216,12 +217,12 @@ const Dashboard: React.FC = () => {
         for (const order of completedOrders) {
           if (order.orderDetails && Array.isArray(order.orderDetails)) {
             for (const detail of order.orderDetails) {
-              const productId = detail.productId || detail.productSizeId;
-              if (productId) {
-                if (productQuantities[productId]) {
-                  productQuantities[productId] += detail.quantity;
+              const productSizeId = detail.productSizeId;
+              if (productSizeId) {
+                if (productQuantities[productSizeId]) {
+                  productQuantities[productSizeId] += detail.quantity;
                 } else {
-                  productQuantities[productId] = detail.quantity;
+                  productQuantities[productSizeId] = detail.quantity;
                 }
               }
             }
@@ -233,18 +234,22 @@ const Dashboard: React.FC = () => {
           .slice(0, 5);
 
         const topProductsData: TopProduct[] = [];
-        for (const [productId, quantity] of sortedProducts) {
+        for (const [productSizeId, quantity] of sortedProducts) {
           try {
-            const productResponse = await callGetProductById(productId);
+            const productSizeResponse = await callGetProductSizeById(productSizeId);
+            if(productSizeResponse.data) {
+            const productResponse = await callGetProductById(productSizeResponse.data?.productId || '');
             if (productResponse.data) {
               topProductsData.push({
                 id: productResponse.data.id,
                 name: productResponse.data.name,
                 quantity,
+                productSizeId, // Add this for unique key
               });
             }
+            }
           } catch (error) {
-
+            console.error('Error fetching product size:', error);
           }
         }
 
@@ -257,11 +262,8 @@ const Dashboard: React.FC = () => {
 
   const fetchTopCustomers = async () => {
     try {
-
-      
       const usersResponse = await callGetUsers({});
 
-      
       if (!usersResponse.data) {
         console.warn('Missing users data in API response');
         setTopCustomers([]);
@@ -278,7 +280,6 @@ const Dashboard: React.FC = () => {
         setTopCustomers([]);
         return;
       }
-      
       
       if (users.length === 0) {
         setTopCustomers([]);
@@ -326,7 +327,12 @@ const Dashboard: React.FC = () => {
         }
       }
       
-      const sortedCustomers = customersWithStats
+      // Filter out duplicates and ensure unique IDs
+      const uniqueCustomers = customersWithStats.filter((customer, index, self) => 
+        index === self.findIndex(c => c.id === customer.id)
+      );
+      
+      const sortedCustomers = uniqueCustomers
         .sort((a, b) => {
           if (b.orderCount !== a.orderCount) {
             return b.orderCount - a.orderCount;
@@ -500,14 +506,14 @@ const Dashboard: React.FC = () => {
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
-        refreshControl={ // Add RefreshControl to ScrollView
+        refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={[COLORS.SUCCESS]} // Color of the refresh indicator
-            tintColor={COLORS.SUCCESS} // iOS tint color
-            title="Đang làm mới..." // iOS loading text
-            titleColor={COLORS.ITEM_TEXT} // iOS text color
+            colors={[COLORS.SUCCESS]}
+            tintColor={COLORS.SUCCESS}
+            title="Đang làm mới..."
+            titleColor={COLORS.ITEM_TEXT}
           />
         }
       >
@@ -674,7 +680,7 @@ const Dashboard: React.FC = () => {
           {topProducts.length > 0 ? (
             topProducts.map((product, index) => (
               <TouchableOpacity 
-                key={product.id} 
+                key={`${product.productSizeId}-${index}`} // Use unique combination
                 style={styles.topProductItem}
                 onPress={() => handleProductPress(product.id)}
                 activeOpacity={0.7}
@@ -731,7 +737,7 @@ const Dashboard: React.FC = () => {
           {topCustomers.length > 0 ? (
             topCustomers.map((customer, index) => (
               <TouchableOpacity 
-                key={customer.id} 
+                key={`${customer.id}-${index}`} // Use unique combination
                 style={styles.topCustomerItem}
                 onPress={() => handleCustomerPress(customer.id)}
                 activeOpacity={0.7}
@@ -792,7 +798,6 @@ const Dashboard: React.FC = () => {
   );
 };
 
-// Styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,
